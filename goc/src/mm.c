@@ -85,46 +85,45 @@ int vmap_page_range(struct pcb_t *caller, // process call
            struct framephy_struct *frames,// list of the mapped frames
               struct vm_rg_struct *ret_rg)// return mapped region, the real mapped fp
 {                                         // no guarantee all given pages are mapped
-  //uint32_t * pte = malloc(sizeof(uint32_t));
+  // uint32_t * pte = malloc(sizeof(uint32_t));
   struct framephy_struct *fpit;
-  int  fpn;
-  int pgit = 0;
-  int pgn = PAGING_PGN(addr);
-  
+  // fpit = malloc(sizeof(struct framephy_struct));
+  // int  fpn;
+  int pgit;
+  int pgn;
+
   ret_rg->rg_end = ret_rg->rg_start = addr; // at least the very first space is usable
 
-  fpit= frames;
-  /* TODO map range of frame to address space 
+  // fpit->fp_next = frames;
+
+  /* TODO map range of frame to address space
    *      [addr to addr + pgnum*PAGING_PAGESZ
    *      in page table caller->mm->pgd[]
    */
-  printf("frames->fpn: %d\n", frames->fpn);
-  
-  uint32_t* pte = malloc(sizeof(uint32_t));
-  init_pte(pte, 1, 1, 0, 0, 0, 0);
-  for(; pgit < pgnum; pgit++){
-    fpn = fpit->fpn;
-    printf("Free frame is: %d\n", fpn);
-    pte_set_swap(pte, 0, 0);
-    pte_set_fpn(pte, fpn);
-
-    caller->mm->pgd[pgn + pgit] = *pte;
-    printf("Mapped region [%ld->",ret_rg->rg_end);
-    ret_rg->rg_end += PAGING_PAGESZ;
-    printf("%ld] to frame %d with address %08x\n",ret_rg->rg_end,fpn,*pte);
+  fpit = frames;
+  for (pgit = 0; pgit < pgnum; pgit++)
+  {
+    // Mapping
+    pgn = PAGING_PGN((addr + pgit * PAGING_PAGESZ));
+    uint32_t *pte = &caller->mm->pgd[pgn];
+    pte_set_fpn(pte, fpit->fpn);
+    // Delete
+    struct framephy_struct *tmp = fpit;
     fpit = fpit->fp_next;
-    
-    enlist_pgn_node(&caller->mm->fifo_pgn, pgn+pgit);  
+    free(tmp);
   }
-  free(pte);
-  caller->mram->used_fp_list = frames;
-   /* Tracking for later page replacement activities (if needed)
-    * Enqueue new usage page */
-  
+  // List the pages to pgn list
+  for (pgit = pgnum - 1; pgit >= 0; pgit--)
+  {
+    pgn = PAGING_PGN((addr + pgit * PAGING_PAGESZ));
+    enlist_pgn_node(&caller->mm->fifo_pgn, pgn);
+  }
+  /* Tracking for later page replacement activities (if needed)
+   * Enqueue new usage page */
+  // enlist_pgn_node(&caller->mm->fifo_pgn, pgn+pgit);
 
   return 0;
 }
-
 /* 
  * alloc_pages_range - allocate req_pgnum of frame in ram
  * @caller    : caller
@@ -134,24 +133,32 @@ int vmap_page_range(struct pcb_t *caller, // process call
 
 int alloc_pages_range(struct pcb_t *caller, int req_pgnum, struct framephy_struct** frm_lst)
 {
+  // Mycode
   int pgit, fpn;
-  struct framephy_struct *newfp_str;
-  //printf("alloc_pages_range: %d\n", req_pgnum);
-  for(pgit = 0; pgit < req_pgnum; pgit++)
+
+  for (pgit = 0; pgit < req_pgnum; pgit++)
   {
-    if(MEMPHY_get_freefp(caller->mram, &fpn) == 0)
-   {
-      newfp_str = malloc(sizeof(struct framephy_struct));
-      newfp_str->fpn = fpn;
-      newfp_str->fp_next = *frm_lst;
-      *frm_lst = newfp_str;
-   } 
-   else {  // ERROR CODE of obtaining somes but not enough frames
-        
-        printf("Not enough frames \n");
-        return -3000;
-   } 
- }
+    struct framephy_struct *new_fp = malloc(sizeof(struct framephy_struct));
+    if (MEMPHY_get_freefp(caller->mram, &fpn) != 0)
+    { // ERROR CODE of obtaining somes but not enough frames
+      // Find a victim page
+      int vicpgn;
+      find_victim_page(caller->mm, &vicpgn);
+      uint32_t vic_pte = caller->mm->pgd[vicpgn];
+      int vicfpn = PAGING_FPN(vic_pte);
+      // Find a free frame in mswp
+      int swpfpn;
+      MEMPHY_get_freefp(caller->active_mswp, &swpfpn);
+      // Copy content from mram to mswp
+      __swap_cp_page(caller->mram, vicfpn, caller->active_mswp, swpfpn);
+      pte_set_swap(&caller->mm->pgd[vicpgn], 0, swpfpn);
+      // Return this victim frame to the free frame list
+      fpn = vicfpn;
+    }
+    new_fp->fpn = fpn;
+    new_fp->fp_next = *frm_lst;
+    *frm_lst = new_fp;
+  }
 
   return 0;
 }
@@ -268,12 +275,12 @@ int init_mm(struct mm_struct *mm, struct pcb_t *caller)
   /* Thiết lập danh sách mmap của mm để trỏ đến VMA0 */
   mm->mmap = vma0;
   
-  /* Thiết lập bảng ký hiệu trống */
-  for (int i = 0; i < PAGING_MAX_SYMTBL_SZ; i++) {
-    mm->symrgtbl[i].rg_start = -1;
-    mm->symrgtbl[i].rg_end = -1;
-    mm->symrgtbl[i].vmaid = -1;
-  }
+  // /* Thiết lập bảng ký hiệu trống */
+  // for (int i = 0; i < PAGING_MAX_SYMTBL_SZ; i++) {
+  //   mm->symrgtbl[i].rg_start = -1;
+  //   mm->symrgtbl[i].rg_end = -1;
+  //   mm->symrgtbl[i].vmaid = -1;
+  // }
   
   /* Thiết lập danh sách trang trống */
   mm->fifo_pgn = NULL;
