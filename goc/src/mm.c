@@ -270,12 +270,12 @@ int init_mm(struct mm_struct *mm, struct pcb_t *caller)
   /* Thiết lập danh sách mmap của mm để trỏ đến VMA0 */
   mm->mmap = vma0;
   
-  // /* Thiết lập bảng ký hiệu trống */
-  // for (int i = 0; i < PAGING_MAX_SYMTBL_SZ; i++) {
-  //   mm->symrgtbl[i].rg_start = -1;
-  //   mm->symrgtbl[i].rg_end = -1;
-  //   mm->symrgtbl[i].vmaid = -1;
-  // }
+  /* Thiết lập bảng ký hiệu trống */
+  for (int i = 0; i < PAGING_MAX_SYMTBL_SZ; i++) {
+    mm->symrgtbl[i].rg_start = -1;
+    mm->symrgtbl[i].rg_end = -1;
+    mm->symrgtbl[i].vmaid = -1;
+  }
   
   /* Thiết lập danh sách trang trống */
   mm->fifo_pgn = NULL;
