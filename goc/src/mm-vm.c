@@ -329,9 +329,10 @@ int __read(struct pcb_t *caller, int rgid, int offset, BYTE *data)
 
   if(currg == NULL || cur_vma == NULL) /* Invalid memory identify */
 	  return -1;
-
+  if(vmaid == 0)
   pg_getval(caller->mm, currg->rg_start + offset, data, caller);
-
+  else if(vmaid == 1)
+  pg_getval(caller->mm, currg->rg_start - offset, data, caller);
   return 0;
 }
 
@@ -375,9 +376,10 @@ int __write(struct pcb_t *caller, int rgid, int offset, BYTE value)
   
   if(currg == NULL || cur_vma == NULL) /* Invalid memory identify */
 	  return -1;
-
+  if(vmaid==0)
   pg_setval(caller->mm, currg->rg_start + offset, value, caller);
-
+  if(vmaid==1)
+  pg_setval(caller->mm, currg->rg_start - offset, value, caller);
   return 0;
 }
 
