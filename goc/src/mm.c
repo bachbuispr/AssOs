@@ -88,10 +88,11 @@ int vmap_page_range(struct pcb_t *caller,
     struct framephy_struct *fpit;
     int pgit;
     int pgn;
-
+    int vmaid = ret_rg->vmaid;
     ret_rg->rg_end = ret_rg->rg_start = addr; // at least the first available space
 
     fpit = frames;
+    if(vmaid == 0){
     for (pgit = 0; pgit < pgnum; pgit++) {
         pgn = (addr + pgit * PAGING_PAGESZ) / PAGING_PAGESZ;
         uint32_t *pte = &caller->mm->pgd[pgn];
@@ -109,6 +110,28 @@ int vmap_page_range(struct pcb_t *caller,
     for (pgit = pgnum - 1; pgit >= 0; pgit--) {
         pgn = (addr + pgit * PAGING_PAGESZ) / PAGING_PAGESZ;
         enlist_pgn_node(&caller->mm->fifo_pgn, pgn);
+    }
+    }
+    // for heap chua hoan thien
+    else if(vmaid == 1){
+    for (pgit = 0; pgit < pgnum; pgit++) {
+        pgn = (addr + pgit * PAGING_PAGESZ) / PAGING_PAGESZ;
+        uint32_t *pte = &caller->mm->pgd[pgn];
+
+        // Set the frame number (FPN) for the corresponding page
+        pte_set_fpn(pte, fpit->fpn);
+
+        // Move to the next frame in the list
+        struct framephy_struct *tmp = fpit;
+        fpit = fpit->fp_next;
+        free(tmp);  // Free the frame as it is now used
+    }
+
+    // List the pages in the page table
+    for (pgit = 0; pgit < pgnum; pgit++) {
+    pgn = (addr - pgit * PAGING_PAGESZ) / PAGING_PAGESZ;
+    enlist_pgn_node(&caller->mm->fifo_pgn, pgn);
+}      
     }
 
     return 0;
@@ -291,7 +314,10 @@ struct vm_rg_struct* init_vm_rg(int rg_start, int rg_end, int vmaid)
 
   rgnode->rg_start = rg_start;
   rgnode->rg_end = rg_end;
+  if(vmaid==0 || vmaid ==1)
   rgnode->vmaid = vmaid;
+  else 
+  printf("fail init vm_rg");
   rgnode->rg_next = NULL;
 
   return rgnode;

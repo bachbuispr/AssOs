@@ -116,7 +116,7 @@ static void * ld_routine(void * args) {
 	while (i < num_processes) {
 		struct pcb_t * proc = load(ld_processes.path[i]);
 #ifdef MLQ_SCHED
-		proc->prio = ld_processes.prio[i];
+		proc->priority = ld_processes.prio[i];
 #endif
 		while (current_time() < ld_processes.start_time[i]) {
 			next_slot(timer_id);
@@ -168,7 +168,7 @@ static void read_config(const char * path) {
 	for(sit = 1; sit < PAGING_MAX_MMSWP; sit++)
 		memswpsz[sit] = 0;
 #ifdef MM_PAGING_HEAP_GODOWN
-	vmemsz = 0x300000
+	vmemsz = 0x300000;
 #endif
 #else
 	/* Read input config of memory size: MEMRAM and upto 4 MEMSWP (mem swap)

@@ -21,7 +21,7 @@ int enlist_vm_freerg_list(struct mm_struct *mm, struct vm_rg_struct* rg_elmt)
 
   if (rg_elmt->rg_start >= rg_elmt->rg_end && rg_elmt->vmaid == 0)
     return -1;
-  else if(rg_elmt->rg_start <= rg_elmt->rg_end && rg_elmt->vmaid == 1)
+  if(rg_elmt->rg_start <= rg_elmt->rg_end && rg_elmt->vmaid == 1)
     return -1;
 
   if (rg_node != NULL)
@@ -588,7 +588,7 @@ int get_free_vmrg_area(struct pcb_t *caller, int vmaid, int size, struct vm_rg_s
   newrg->rg_start = newrg->rg_end = -1;
 
   /* Traverse on list of free vm region to find a fit space */
-  while (rgit != NULL && rgit->vmaid == vmaid && newrg->vmaid == 0)
+  while (rgit != NULL && rgit->vmaid == vmaid && rgit->vmaid == 0)
   {
     if (rgit->rg_start + size <= rgit->rg_end)
     { /* Current region has enough space */
@@ -627,7 +627,7 @@ int get_free_vmrg_area(struct pcb_t *caller, int vmaid, int size, struct vm_rg_s
       rgit = rgit->rg_next;	// Traverse next rg
     }
   }
-    while (rgit != NULL && rgit->vmaid == vmaid && newrg->vmaid == 1)
+    while (rgit != NULL && rgit->vmaid == vmaid && rgit->vmaid == 1)
   {
     if (rgit->rg_start - size >= rgit->rg_end)
     { /* Current region has enough space */
